@@ -9,6 +9,7 @@ public class Node {
     private Map<Integer, Double> neighbors;
     private Map<Integer, List<Integer>> ports;
     // ports is of the form (neighbor_id) -> (send_port, listen_port)
+    private Map<Integer, Integer> seqCounter;
 
 
     // TODO
@@ -22,6 +23,7 @@ public class Node {
     public Node(String line){
         this.ports = new HashMap<>();
         this.neighbors = new HashMap<>();
+        this.seqCounter = new HashMap<>();
         parseLine(line);
     }
 
@@ -69,12 +71,7 @@ public class Node {
             e.printStackTrace();
         }
     }
-    private void handleMessage(String message){
-        String[] parts = message.split("/");
-        int sender = Integer.parseInt(parts[0]);
-        String orig_msg = parts[1];
-        int seq = Integer.parseInt(parts[2]);
-    }
+
     public void receiveMessage() throws IOException{
         /*
         receives a message by listening on all ports
@@ -89,7 +86,18 @@ public class Node {
                         InputStream in = socket.getInputStream();
                         byte[] message = new byte[1024];
                         in.read(message);
-                        handleMessage(new String(message));
+                        String msg = new String(message);
+
+                        String[] parts = msg.split("/");
+                        int source = Integer.parseInt(parts[0]);
+                        String orig_msg = parts[1];
+                        int seq = Integer.parseInt(parts[2]);
+
+                        if (seq > this.seqCounter.get(source)) {
+                            this.seqCounter.put(source, seq);
+
+                        }
+
                         socket.close();
                     }
                 } catch (IOException e) {
