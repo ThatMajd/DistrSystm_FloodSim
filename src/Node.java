@@ -4,6 +4,7 @@ import java.util.*;
 
 public class Node {
 
+    private Integer num_of_nodes;
     private Map<Integer, List<Integer>> routingTable;
     public Integer id;
     private Map<Integer, Double> neighbors;
@@ -20,21 +21,31 @@ public class Node {
             System.out.println(entry.getKey() + " : " + entry.getValue());
         }
     }
-    public Node(String line){
+    public Node(String line, Integer num_of_nodes){
         this.ports = new HashMap<>();
         this.neighbors = new HashMap<>();
         this.seqCounter = new HashMap<>();
+        this.num_of_nodes = num_of_nodes;
         parseLine(line);
     }
 
-    private void test(){
-        for (Integer neighbor: this.neighbors.keySet()){
-            int listen_port = this.ports.get(neighbor).get(1);
-        }
+    public void update_weight(Integer neighbor, Double new_weight){
+        this.neighbors.put(neighbor, new_weight);
     }
-    private void flooding_seq() throws IOException {
+    public void handleMsg(String msg){
+        /*
+        TODO:
+        This function handles incoming data coming from other nodes in order to construct
+        a local copy of the entire graph
+         */
+        System.out.println(msg);
+    }
+    private void flood(Integer source, String msg, Integer seq) throws IOException {
+        handleMsg(msg);
+        seq++; // incrementing the seq number of the msg for a new broadcast
+        String final_msg = source+"/"+msg+"/"+seq;
         for (Integer neighbor: this.neighbors.keySet()){
-            sendMessage("a", neighbor);
+            sendMessage(final_msg, neighbor);
         }
     }
 
@@ -65,16 +76,16 @@ public class Node {
         try {
             Socket socket = new Socket("localhost", this.ports.get(receiver).get(0));
             OutputStream out = socket.getOutputStream();
-            out.write((this.id+"/"+msg+"/1").getBytes());
+            out.write(msg.getBytes());
             socket.close();
         } catch (IOException e){
             e.printStackTrace();
         }
     }
 
-    public void receiveMessage() throws IOException{
+    public void receiveMessages() throws IOException{
         /*
-        receives a message by listening on all ports
+        Listens on all the neighbor's listening ports
          */
         for (Integer neighbor: this.neighbors.keySet()){
             Thread thread = new Thread(() -> {
@@ -89,13 +100,14 @@ public class Node {
                         String msg = new String(message);
 
                         String[] parts = msg.split("/");
+
                         int source = Integer.parseInt(parts[0]);
                         String orig_msg = parts[1];
                         int seq = Integer.parseInt(parts[2]);
 
                         if (seq > this.seqCounter.get(source)) {
                             this.seqCounter.put(source, seq);
-
+                            flood(source, orig_msg, seq);
                         }
 
                         socket.close();

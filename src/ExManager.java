@@ -25,17 +25,15 @@ public class ExManager {
 
     public void update_edge(int id1, int id2, double weight){
         Node from = null;
-        Node to = null;
+        Integer to = id2;
         for (Node node : nodes) {
             if (node.id == id1) {
                 from = node;
             }
-            if (node.id == id2) {
-                to = node;
-            }
         }
-        //TODO: need to access 'from' and 'to' adjacency matrix and update the new weight
-
+        assert from != null;
+        assert id1 != id2;
+        from.update_weight(to, weight);
     }
 
     public void read_txt() throws FileNotFoundException{
@@ -57,7 +55,7 @@ public class ExManager {
             line_items = line.split(" ");
             System.out.println(line);
             Integer id = Integer.parseInt(line_items[0]);
-            Node node = new Node(line);
+            Node node = new Node(line, this.num_of_nodes);
             nodes.add(node);
         }
 
