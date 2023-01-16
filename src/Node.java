@@ -51,22 +51,19 @@ public class Node {
         this.msgs.put(source, msg);
     }
     public void read_msgs(){
-        System.out.println(this.id + " is reading: ");
+        while (this.num_of_nodes != this.msgs.size()){}
         for (String msg : this.msgs.values()){
-            System.out.println(msg);
+            System.out.println(this.id + "--" + msg);
         }
+        System.out.println();
     }
-    private int flood(Integer source, String msg, Integer seq) throws IOException {
-        if (this.msgs.size() == this.num_of_nodes){
-            return 1;
-        }
+    private void flood(Integer source, String msg, Integer seq) throws IOException {
         handleMsg(source, msg);
         seq++; // incrementing the seq number of the msg for a new broadcast
         String final_msg = source+"/"+msg+"/"+seq;
         for (Integer neighbor: this.neighbors.keySet()){
             sendMessage(final_msg, neighbor);
         }
-        return 0;
     }
 
     private void parseLine(String line){
@@ -95,7 +92,7 @@ public class Node {
          */
         try {
             int port = this.ports.get(receiver).get(0);
-            System.out.println(this.id + " sending on " + port);
+            // System.out.println(this.id + " sending on " + port);
             Socket socket = new Socket(InetAddress.getByName("localhost"), port);
             OutputStream out = socket.getOutputStream();
             out.write(msg.getBytes());
@@ -113,7 +110,7 @@ public class Node {
             Thread thread = new Thread(() -> {
                 int port = this.ports.get(neighbor).get(1);
                 try {
-                    System.out.println(this.id + " listening on " + port);
+                    // System.out.println(this.id + " listening on " + port);
                     ServerSocket serverSocket = new ServerSocket(port);
                     while (true) {
                         Socket socket = serverSocket.accept();
@@ -133,8 +130,12 @@ public class Node {
                         }
                         if (seq > this.seqCounter.get(source)) {
                             this.seqCounter.put(source, seq);
-                            if (flood(source, orig_msg, seq) == 1){
+
+                            flood(source, orig_msg, seq);
+                            if (this.msgs.size() == this.num_of_nodes){
+                                System.out.println(this.id+" stopped listening");
                                 socket.close();
+                                break;
                             }
                         }
 
