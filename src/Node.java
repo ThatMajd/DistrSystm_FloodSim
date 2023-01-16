@@ -11,6 +11,7 @@ public class Node {
     private Map<Integer, List<Integer>> ports;
     // ports is of the form (neighbor_id) -> (send_port, listen_port)
     private Map<Integer, Integer> seqCounter;
+    private Map<Integer, String> msgs;
 
 
     // TODO
@@ -25,6 +26,7 @@ public class Node {
         this.ports = new HashMap<>();
         this.neighbors = new HashMap<>();
         this.seqCounter = new HashMap<>();
+        this.msgs = new HashMap<>();
         this.num_of_nodes = num_of_nodes;
         parseLine(line);
     }
@@ -32,21 +34,39 @@ public class Node {
     public void update_weight(Integer neighbor, Double new_weight){
         this.neighbors.put(neighbor, new_weight);
     }
-    public void handleMsg(String msg){
+    public void send() throws IOException {
+        /*
+        Testing function to check whether the communication works
+         */
+        String msg = "from" + this.id;
+        flood(this.id, msg, 0);
+    }
+
+    public void handleMsg(Integer source, String msg){
         /*
         TODO:
         This function handles incoming data coming from other nodes in order to construct
         a local copy of the entire graph
          */
-        System.out.println(msg);
+        this.msgs.put(source, msg);
     }
-    private void flood(Integer source, String msg, Integer seq) throws IOException {
-        handleMsg(msg);
+    public void read_msgs(){
+        System.out.println(this.id + " is reading: ");
+        for (String msg : this.msgs.values()){
+            System.out.println(msg);
+        }
+    }
+    private int flood(Integer source, String msg, Integer seq) throws IOException {
+        if (this.msgs.size() == this.num_of_nodes){
+            return 1;
+        }
+        handleMsg(source, msg);
         seq++; // incrementing the seq number of the msg for a new broadcast
         String final_msg = source+"/"+msg+"/"+seq;
         for (Integer neighbor: this.neighbors.keySet()){
             sendMessage(final_msg, neighbor);
         }
+        return 0;
     }
 
     private void parseLine(String line){
@@ -74,7 +94,9 @@ public class Node {
         @returns None
          */
         try {
-            Socket socket = new Socket("localhost", this.ports.get(receiver).get(0));
+            int port = this.ports.get(receiver).get(0);
+            System.out.println(this.id + " sending on " + port);
+            Socket socket = new Socket(InetAddress.getByName("localhost"), port);
             OutputStream out = socket.getOutputStream();
             out.write(msg.getBytes());
             socket.close();
@@ -91,6 +113,7 @@ public class Node {
             Thread thread = new Thread(() -> {
                 int port = this.ports.get(neighbor).get(1);
                 try {
+                    System.out.println(this.id + " listening on " + port);
                     ServerSocket serverSocket = new ServerSocket(port);
                     while (true) {
                         Socket socket = serverSocket.accept();
@@ -99,15 +122,20 @@ public class Node {
                         in.read(message);
                         String msg = new String(message);
 
-                        String[] parts = msg.split("/");
+                        String[] parts = msg.trim().split("/");
 
                         int source = Integer.parseInt(parts[0]);
                         String orig_msg = parts[1];
                         int seq = Integer.parseInt(parts[2]);
 
+                        if (!this.seqCounter.containsKey(source)){
+                            this.seqCounter.put(source, 0);
+                        }
                         if (seq > this.seqCounter.get(source)) {
                             this.seqCounter.put(source, seq);
-                            flood(source, orig_msg, seq);
+                            if (flood(source, orig_msg, seq) == 1){
+                                socket.close();
+                            }
                         }
 
                         socket.close();

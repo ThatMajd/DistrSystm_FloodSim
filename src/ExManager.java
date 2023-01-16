@@ -58,7 +58,28 @@ public class ExManager {
             Node node = new Node(line, this.num_of_nodes);
             nodes.add(node);
         }
+        // DELETE THIS
+        Node n1 = getNode(1);
+        Node n2 = getNode(2);
+        Node n3 = getNode(3);
+        try {
+            n1.receiveMessages();
+            n2.receiveMessages();
+            n3.receiveMessages();
+        } catch (IOException e){
+            e.printStackTrace();
+        }
+        try{
+            n1.send();
+            n2.send();
+            n3.send();
+        } catch (IOException e){
+            e.printStackTrace();
+        }
 
+        for (Node n : this.nodes){
+            n.read_msgs();
+        }
     }
 
     public void start(){
