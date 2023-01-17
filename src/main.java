@@ -2,13 +2,9 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.Scanner;
 
-import java.util.*;
-import java.net.*;
-import java.io.*;
-
 public class main {
     public static void main(String[] args) throws FileNotFoundException {
-        String[] paths = {"input_test.txt"}; //enter the path to the files you want to run here.
+        String[] paths = {"input1.txt", "input2.txt"}; //enter the path to the files you want to run here.
         for(String path: paths) {
             ExManager m = new ExManager(path);
             m.read_txt();

@@ -2,7 +2,7 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 
-public class Node {
+public class Node extends Thread{
 
     private Integer num_of_nodes;
     private Map<Integer, List<Integer>> routingTable;
@@ -12,10 +12,16 @@ public class Node {
     // ports is of the form (neighbor_id) -> (send_port, listen_port)
     private Map<Integer, Integer> seqCounter;
     private Map<Integer, String> msgs;
+    private int msgs_to_send;
 
 
     // TODO
     // each node should have a Routing table, that has an entry for all the vertices
+
+    // TODO:
+    // when a node sends a msg = <msg, source, msgs_to_be_sent_by_source>
+    // each node has a map containing all the vertices, #msgs_received, #msgs_to_be_sent
+    //
 
     public static <K, V> void printMap(Map<K, V> map) {
         for (Map.Entry<K, V> entry : map.entrySet()) {
@@ -27,11 +33,24 @@ public class Node {
         this.neighbors = new HashMap<>();
         this.seqCounter = new HashMap<>();
         this.msgs = new HashMap<>();
+        this.msgs_to_send = 0;
         this.num_of_nodes = num_of_nodes;
         parseLine(line);
+        try {
+            this.receiveMessages();
+        } catch (IOException e){
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public synchronized void start() {
+        super.start();
+        // flood
     }
 
     public void update_weight(Integer neighbor, Double new_weight){
+        this.msgs_to_send++;
         this.neighbors.put(neighbor, new_weight);
     }
     public void send() throws IOException {
@@ -40,6 +59,9 @@ public class Node {
          */
         String msg = "from" + this.id;
         flood(this.id, msg, 0);
+    }
+    public void reset_msgs_to_send(){
+        this.msgs_to_send = 0;
     }
 
     public void handleMsg(Integer source, String msg){
@@ -91,6 +113,8 @@ public class Node {
         @returns None
          */
         try {
+            // TODO:
+            // check another terminating condition, (if it receives 2 msgs)
             int port = this.ports.get(receiver).get(0);
             // System.out.println(this.id + " sending on " + port);
             Socket socket = new Socket(InetAddress.getByName("localhost"), port);
@@ -133,7 +157,7 @@ public class Node {
 
                             flood(source, orig_msg, seq);
                             if (this.msgs.size() == this.num_of_nodes){
-                                System.out.println(this.id+" stopped listening");
+                                System.out.println(this.id+" stopped listening on port "+ port);
                                 socket.close();
                                 break;
                             }
@@ -141,6 +165,7 @@ public class Node {
 
                         socket.close();
                     }
+                    serverSocket.close();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

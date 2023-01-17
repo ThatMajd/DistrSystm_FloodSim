@@ -25,15 +25,20 @@ public class ExManager {
 
     public void update_edge(int id1, int id2, double weight){
         Node from = null;
-        Integer to = id2;
+        Node to = null;
         for (Node node : nodes) {
             if (node.id == id1) {
                 from = node;
             }
+            if (node.id == id2) {
+                to = node;
+            }
         }
         assert from != null;
         assert id1 != id2;
-        from.update_weight(to, weight);
+        assert to != null;
+        from.update_weight(to.id, weight);
+        to.update_weight(from.id, weight);
     }
 
     public void read_txt() throws FileNotFoundException{
@@ -59,20 +64,18 @@ public class ExManager {
             nodes.add(node);
         }
         // DELETE THIS
-        Node n1 = getNode(1);
-        Node n2 = getNode(2);
-        Node n3 = getNode(3);
+
         try {
-            n1.receiveMessages();
-            n2.receiveMessages();
-            n3.receiveMessages();
+            for (Node n : this.nodes){
+                n.receiveMessages();
+            }
         } catch (IOException e){
             e.printStackTrace();
         }
         try{
-            n1.send();
-            n2.send();
-            n3.send();
+            for (Node n : this.nodes){
+                n.send();
+            }
         } catch (IOException e){
             e.printStackTrace();
         }
@@ -84,5 +87,16 @@ public class ExManager {
 
     public void start(){
         // your code here
+        for (Node node : this.nodes){
+            node.start();
+        }
+        for (Node node : this.nodes) {
+            try {
+                node.join();
+                node.reset_msgs_to_send();
+            } catch (InterruptedException e){
+                e.printStackTrace();
+            }
+        }
     }
 }
