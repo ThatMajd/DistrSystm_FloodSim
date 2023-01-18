@@ -65,24 +65,24 @@ public class ExManager {
         }
         // DELETE THIS
 
-        try {
-            for (Node n : this.nodes){
-                n.receiveMessages();
-            }
-        } catch (IOException e){
-            e.printStackTrace();
-        }
-        try{
-            for (Node n : this.nodes){
-                n.send();
-            }
-        } catch (IOException e){
-            e.printStackTrace();
-        }
-
-        for (Node n : this.nodes){
-            n.read_msgs();
-        }
+//        try {
+//            for (Node n : this.nodes){
+//                n.receiveMessages();
+//            }
+//        } catch (IOException e){
+//            e.printStackTrace();
+//        }
+//        try{
+//            for (Node n : this.nodes){
+//                n.send();
+//            }
+//        } catch (IOException e){
+//            e.printStackTrace();
+//        }
+//
+//        for (Node n : this.nodes){
+//            n.read_msgs();
+//        }
     }
 
     public void start(){
@@ -93,10 +93,12 @@ public class ExManager {
         for (Node node : this.nodes) {
             try {
                 node.join();
-                node.reset_msgs_to_send();
             } catch (InterruptedException e){
                 e.printStackTrace();
             }
+        }
+        for (Node node : this.nodes){
+            node.read_msgs();
         }
     }
 }

@@ -13,6 +13,7 @@ public class Node extends Thread{
     private Map<Integer, Integer> seqCounter;
     private Map<Integer, String> msgs;
     private int msgs_to_send;
+    private int curr_listening;
 
 
     // TODO
@@ -34,6 +35,7 @@ public class Node extends Thread{
         this.seqCounter = new HashMap<>();
         this.msgs = new HashMap<>();
         this.msgs_to_send = 0;
+        this.curr_listening = 0;
         this.num_of_nodes = num_of_nodes;
         parseLine(line);
         try {
@@ -47,6 +49,11 @@ public class Node extends Thread{
     public synchronized void start() {
         super.start();
         // flood
+        try {
+            send();
+        } catch (IOException e){
+            e.printStackTrace();
+        }
     }
 
     public void update_weight(Integer neighbor, Double new_weight){
@@ -60,9 +67,6 @@ public class Node extends Thread{
         String msg = "from" + this.id;
         flood(this.id, msg, 0);
     }
-    public void reset_msgs_to_send(){
-        this.msgs_to_send = 0;
-    }
 
     public void handleMsg(Integer source, String msg){
         /*
@@ -73,6 +77,7 @@ public class Node extends Thread{
         this.msgs.put(source, msg);
     }
     public void read_msgs(){
+        System.out.println("Is " + this.id + " listening: " + this.is_listening());
         while (this.num_of_nodes != this.msgs.size()){}
         for (String msg : this.msgs.values()){
             System.out.println(this.id + "--" + msg);
@@ -121,8 +126,23 @@ public class Node extends Thread{
             OutputStream out = socket.getOutputStream();
             out.write(msg.getBytes());
             socket.close();
-        } catch (IOException e){
-            e.printStackTrace();
+        } catch (java.net.SocketException e) {
+            /*System.out.println(this.id + " cant connect to " + receiver + this.ports.get(receiver).get(0));*/
+            // dont worry about it :)
+
+        }
+    }
+    public Boolean is_listening(){
+        return this.curr_listening == this.neighbors.size();
+    }
+    private void not_listening(){
+        for (Integer node : this.neighbors.keySet()){
+            String msg = this.id + "/" + "out";
+            try {
+                sendMessage(msg, node);
+            } catch (IOException e){
+                e.printStackTrace();
+            }
         }
     }
 
@@ -158,6 +178,7 @@ public class Node extends Thread{
                             flood(source, orig_msg, seq);
                             if (this.msgs.size() == this.num_of_nodes){
                                 System.out.println(this.id+" stopped listening on port "+ port);
+                                curr_listening--;
                                 socket.close();
                                 break;
                             }
