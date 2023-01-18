@@ -63,40 +63,54 @@ public class ExManager {
             Node node = new Node(line, this.num_of_nodes);
             nodes.add(node);
         }
+        for (Node node : this.nodes) {
+            try {
+                node.join();
+            } catch (InterruptedException e){
+                e.printStackTrace();
+            }
+        }
         // DELETE THIS
 
-        try {
-            for (Node n : this.nodes){
-                n.receiveMessages();
-            }
-        } catch (IOException e){
-            e.printStackTrace();
-        }
-        try{
-            for (Node n : this.nodes){
-                n.send();
-            }
-        } catch (IOException e){
-            e.printStackTrace();
-        }
-
-        for (Node n : this.nodes){
-            n.read_msgs();
-        }
+//        try {
+//            for (Node n : this.nodes){
+//                n.receiveMessages();
+//            }
+//        } catch (IOException e){
+//            e.printStackTrace();
+//        }
+//        try{
+//            for (Node n : this.nodes){
+//                n.send();
+//            }
+//        } catch (IOException e){
+//            e.printStackTrace();
+//        }
+//
+//        for (Node n : this.nodes){
+//            n.read_msgs();
+//        }
     }
 
     public void start(){
         // your code here
+        for (Node node : this.nodes){
+            while (!node.is_listening());
+        }
+        System.out.println("All nodes are listening");
         for (Node node : this.nodes){
             node.start();
         }
         for (Node node : this.nodes) {
             try {
                 node.join();
-                node.reset_msgs_to_send();
             } catch (InterruptedException e){
                 e.printStackTrace();
             }
+        }
+
+        for (Node node : this.nodes){
+            node.read_msgs();
         }
     }
 }

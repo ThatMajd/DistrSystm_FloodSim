@@ -12,7 +12,9 @@ public class Node extends Thread{
     // ports is of the form (neighbor_id) -> (send_port, listen_port)
     private Map<Integer, Integer> seqCounter;
     private Map<Integer, String> msgs;
+    private List<Integer> dont_send;
     private int msgs_to_send;
+    private int curr_listening;
 
 
     // TODO
@@ -29,11 +31,16 @@ public class Node extends Thread{
         }
     }
     public Node(String line, Integer num_of_nodes){
+        /*
+        Initilizes node as specified, starts listening
+         */
         this.ports = new HashMap<>();
         this.neighbors = new HashMap<>();
         this.seqCounter = new HashMap<>();
         this.msgs = new HashMap<>();
+        this.dont_send = new ArrayList<>();
         this.msgs_to_send = 0;
+        this.curr_listening = 0;
         this.num_of_nodes = num_of_nodes;
         parseLine(line);
         try {
@@ -47,6 +54,11 @@ public class Node extends Thread{
     public synchronized void start() {
         super.start();
         // flood
+        try {
+            send();
+        } catch (IOException e){
+            e.printStackTrace();
+        }
     }
 
     public void update_weight(Integer neighbor, Double new_weight){
@@ -61,6 +73,7 @@ public class Node extends Thread{
         flood(this.id, msg, 0);
     }
     public void reset_msgs_to_send(){
+        System.out.println("Restting msgs");
         this.msgs_to_send = 0;
     }
 
@@ -80,11 +93,13 @@ public class Node extends Thread{
         System.out.println();
     }
     private void flood(Integer source, String msg, Integer seq) throws IOException {
-        handleMsg(source, msg);
         seq++; // incrementing the seq number of the msg for a new broadcast
         String final_msg = source+"/"+msg+"/"+seq;
         for (Integer neighbor: this.neighbors.keySet()){
-            sendMessage(final_msg, neighbor);
+            if (!this.dont_send.contains(neighbor)) {
+                // If neighbor isn't in don't send list
+                sendMessage(final_msg, neighbor);
+            }
         }
     }
 
@@ -112,17 +127,32 @@ public class Node extends Thread{
         @param receiver the id of the receiver
         @returns None
          */
+        // System.out.println("Sending");
         try {
             // TODO:
-            // check another terminating condition, (if it receives 2 msgs)
+            // check another terminating condition
             int port = this.ports.get(receiver).get(0);
             // System.out.println(this.id + " sending on " + port);
             Socket socket = new Socket(InetAddress.getByName("localhost"), port);
             OutputStream out = socket.getOutputStream();
             out.write(msg.getBytes());
             socket.close();
-        } catch (IOException e){
-            e.printStackTrace();
+        } catch (java.net.SocketException e) {
+            System.out.println(this.id + " cant connect to " + receiver + this.ports.get(receiver).get(0));
+
+        }
+    }
+    public Boolean is_listening(){
+        return this.curr_listening == this.neighbors.size();
+    }
+    private void not_listening(){
+        for (Integer node : this.neighbors.keySet()){
+            String msg = this.id + "/" + "out";
+            try {
+                sendMessage(msg, node);
+            } catch (IOException e){
+                e.printStackTrace();
+            }
         }
     }
 
@@ -130,13 +160,17 @@ public class Node extends Thread{
         /*
         Listens on all the neighbor's listening ports
          */
+
         for (Integer neighbor: this.neighbors.keySet()){
             Thread thread = new Thread(() -> {
                 int port = this.ports.get(neighbor).get(1);
                 try {
-                    // System.out.println(this.id + " listening on " + port);
+                    System.out.println(this.id + " listening on " + port);
                     ServerSocket serverSocket = new ServerSocket(port);
                     while (true) {
+                        // TODO:
+                        // Figure out a way to check if a node is listening
+                        this.curr_listening++;
                         Socket socket = serverSocket.accept();
                         InputStream in = socket.getInputStream();
                         byte[] message = new byte[1024];
@@ -147,6 +181,13 @@ public class Node extends Thread{
 
                         int source = Integer.parseInt(parts[0]);
                         String orig_msg = parts[1];
+
+                        if (parts.length == 2){
+                            this.dont_send.add(source);
+                            socket.close();
+                            continue;
+                        }
+
                         int seq = Integer.parseInt(parts[2]);
 
                         if (!this.seqCounter.containsKey(source)){
@@ -158,6 +199,7 @@ public class Node extends Thread{
                             flood(source, orig_msg, seq);
                             if (this.msgs.size() == this.num_of_nodes){
                                 System.out.println(this.id+" stopped listening on port "+ port);
+                                not_listening();
                                 socket.close();
                                 break;
                             }
