@@ -85,19 +85,31 @@ public class ExManager {
 //        }
     }
 
-    public void start(){
+    public void start() {
         // your code here
-        for (Node node : this.nodes){
+        for (Node node: this.nodes){
+            // wait until node is listening
+            while (!node.is_listening());
+        }
+        for (Node node: this.nodes){
             node.start();
         }
-        for (Node node : this.nodes) {
-            try {
-                node.join();
-            } catch (InterruptedException e){
+
+        for (Node node: this.nodes){
+            while(node.num_msgs() != num_of_nodes);
+            System.out.println(node.id + "finished");
+        }
+        for (Node node: this.nodes){
+            node.stop_receiving();
+
+        }
+        for (Node node: this.nodes){
+            try{node.join();}
+            catch (InterruptedException e){
                 e.printStackTrace();
             }
         }
-        for (Node node : this.nodes){
+        for (Node node: this.nodes){
             node.read_msgs();
         }
     }
