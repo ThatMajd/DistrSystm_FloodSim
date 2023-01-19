@@ -82,7 +82,7 @@ public class Node extends Thread{
         }
     }
 
-    private void handleMessage(String msg){
+    private synchronized void handleMessage(String msg){
         // msg is of the form (msg, source)
         String[] parts = msg.split("/");
         Integer source = Integer.parseInt(parts[0]);
