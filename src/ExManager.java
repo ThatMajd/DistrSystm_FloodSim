@@ -1,9 +1,12 @@
 import java.util.*;
 import java.io.*;
+import java.util.*;
 public class ExManager {
     private String path;
     private Integer num_of_nodes;
     private List<Node> nodes;
+    // DELETE THIS
+    // public static int num_threads = 0;
 
 
     public ExManager(String path){
@@ -60,9 +63,11 @@ public class ExManager {
             line_items = line.split(" ");
             System.out.println(line);
             Integer id = Integer.parseInt(line_items[0]);
-            Node node = new Node(line, this.num_of_nodes);
+            Node node = new Node(line, this.num_of_nodes, this);
             nodes.add(node);
+            //num_threads += node.get_num_neighs();
         }
+        //System.out.println(num_threads);
         // DELETE THIS
 
 //        try {
@@ -89,19 +94,22 @@ public class ExManager {
         // your code here
         for (Node node: this.nodes){
             // wait until node is listening
-            while (!node.is_listening());
+            while (!node.is_listening()){
+            }
         }
         for (Node node: this.nodes){
             node.start();
         }
 
         for (Node node: this.nodes){
-            while(node.num_msgs() != num_of_nodes);
+            while(node.num_msgs() != num_of_nodes){
+            }
             System.out.println(node.id + "finished");
         }
         for (Node node: this.nodes){
+            //System.out.println(node.id + " is here");
+            node.killListeningSockets();
             node.stop_receiving();
-
         }
         for (Node node: this.nodes){
             try{node.join();}
