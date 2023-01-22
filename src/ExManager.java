@@ -98,7 +98,7 @@ public class ExManager {
             }
         }
         for (Node node: this.nodes){
-            node.start();
+            node.run();
         }
 
         for (Node node: this.nodes){

@@ -47,9 +47,9 @@ public class Node extends Thread{
     }
 
     @Override
-    public synchronized void start() {
+    public void run() {
         assert false;
-        super.start();
+        super.run();
         send();
     }
     public int num_msgs(){
