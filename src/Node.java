@@ -95,12 +95,12 @@ public class Node extends Thread{
             String[] parts = s.split("/");
             Integer source = Integer.parseInt(parts[0]);
             String org_msg = parts[1];
-            System.out.println(this.id + "-" + s);
+            //System.out.println(this.id + "-" + s);
             if (!this.msgs.containsKey(source)) {
                 this.msgs.put(source, org_msg);
                 for (Integer neighbor : this.neighbors.keySet()) {
                     // send msg
-                    sendMessage(s, neighbor);
+                    sendMessage(s+"@", neighbor);
                 }
             }
         }
