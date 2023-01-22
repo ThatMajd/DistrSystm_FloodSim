@@ -56,12 +56,16 @@ public class Node extends Thread{
         return this.msgs.size();
     }
     private void send(){
-        String msg = "from" + this.id;
+        String msg = this.neighbors.toString();//"from" + this.id;
         handleMessage(this.id+"/"+msg+"@");
     }
     public void read_msgs(){
         assert !is_listening();
         System.out.println(this.id + " " + (this.msgs.size() == this.num_of_nodes));
+//        for(String m: this.msgs.values()){
+//            System.out.println(m);
+//        }
+//        System.out.println();
     }
 
     public void update_weight(Integer neighbor, Double new_weight){
@@ -95,12 +99,12 @@ public class Node extends Thread{
             String[] parts = s.split("/");
             Integer source = Integer.parseInt(parts[0]);
             String org_msg = parts[1];
-            //System.out.println(this.id + "-" + s);
+            //System.out.println(this.id + "-" + s + " and sending it to " + this.neighbors.keySet());
             if (!this.msgs.containsKey(source)) {
                 this.msgs.put(source, org_msg);
                 for (Integer neighbor : this.neighbors.keySet()) {
                     // send msg
-                    sendMessage(s+"@", neighbor);
+                    sendMessage(s + "@", neighbor);
                 }
             }
         }
@@ -166,40 +170,46 @@ public class Node extends Thread{
 
     public void receiveMessages(){
         for (Integer neighbor: this.neighbors.keySet()){
-                Thread thread = new Thread(() -> {
-                    try {
-                        //System.out.println("Node "+this.id+" is listening on port " + listen_port);
-                        ServerSocket serverSocket = new ServerSocket(this.ports.get(neighbor).get(1));
-                        serverSocket.setSoTimeout(5000);
-                        Socket socket = null;
-                        while (!this.stop_listening){
-                            try {
-                                incrementListening(this.ports.get(neighbor).get(1));
-                                if (socket == null){
-                                    socket = serverSocket.accept();
-                                }
-                                InputStream in = socket.getInputStream();
-                                byte[] msg_bits = new byte[1024];
-                                in.read(msg_bits);
-                                String msg = new String(msg_bits);
-                                handleMessage(msg.trim());
-
-                            } catch (SocketTimeoutException e){
-                                System.out.println("JERE");
-                                decrementListening(this.ports.get(neighbor).get(1));
+            Thread thread = new Thread(() -> {
+                try {
+                    //System.out.println("Node "+this.id+" is listening on port " + listen_port);
+                    ServerSocket serverSocket = new ServerSocket(this.ports.get(neighbor).get(1));
+                    serverSocket.setSoTimeout(5000);
+                    Socket socket = null;
+                    StringBuilder f_msg = new StringBuilder();
+                    while (!this.stop_listening){
+                        try {
+                            incrementListening(this.ports.get(neighbor).get(1));
+                            if (socket == null){
+                                socket = serverSocket.accept();
                             }
+                            InputStream in = socket.getInputStream();
+                            byte[] msg_bits = new byte[1024];
+                            in.read(msg_bits);
+                            String msg = new String(msg_bits).trim();
+                            if (!msg.equals("")) {
+                                int i = msg.lastIndexOf('@');
+                                f_msg.append(msg);
+                                handleMessage(f_msg.substring(0, i));
+                                f_msg = new StringBuilder(f_msg.substring(i + 1));
+                            }
+
+                        } catch (SocketTimeoutException e){
+                            System.out.println("JERE");
+                            decrementListening(this.ports.get(neighbor).get(1));
                         }
-                        if (socket == null){
-                            System.out.println("Something fishy");
-                        }
-                        socket.close();
-                        serverSocket.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
                     }
-                });
-                thread.start();
-            }
+                    if (socket == null){
+                        System.out.println("Something fishy");
+                    }
+                    socket.close();
+                    serverSocket.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+            thread.start();
+        }
     }
 
 }
