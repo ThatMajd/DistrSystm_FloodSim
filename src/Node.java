@@ -13,33 +13,80 @@ public class Node extends Thread{
     private Map<Integer, String> msgs;
     private Boolean stop_listening;
     private Map<Integer, Socket> sendingSockets;
+    public Map<Integer, ServerSocket> receivingSockets;
+    private Map<Integer, Socket> clientSockets;
     private List<Integer> curr_listening;
 
     public ExManager manager;
 
-
-    // TODO
-    // each node should have a Routing table, that has an entry for all the vertices
 
     public static <K, V> void printMap(Map<K, V> map) {
         for (Map.Entry<K, V> entry : map.entrySet()) {
             System.out.println(entry.getKey() + " : " + entry.getValue());
         }
     }
-    public Node(String line, Integer num_of_nodes, ExManager m){
+    public Node(String line, Integer num_of_nodes){
         this.ports = new HashMap<>();
         this.neighbors = new HashMap<>();
         this.seqCounter = new HashMap<>();
         this.msgs = new HashMap<>();
         this.num_of_nodes = num_of_nodes;
-        this.stop_listening = false;
         this.curr_listening = new ArrayList<>();
         this.sendingSockets = new HashMap<>();
+        this.receivingSockets = new HashMap<>();
+        this.clientSockets = new HashMap<>();
 
-        this.manager = m;
 
         parseLine(line);
         receiveMessages();
+    }
+
+    public void print_graph(){
+
+        float[][] adjacency_table = new float[num_of_nodes][num_of_nodes];
+        for (int i=0; i<num_of_nodes;i++){
+            for (int j=0; j<num_of_nodes;j++){
+                adjacency_table[i][j] = -1;
+            }
+        }
+        for (int j = 0; j < this.num_of_nodes; j++) {
+
+            String j_msgs = this.msgs.get(j+1);
+
+            String[] parts = j_msgs.split(",");
+
+            String[] neighbor_and_val;
+            for (int k = 0; k < parts.length; k++){
+                parts[k] = parts[k].replace("{","");
+                parts[k] = parts[k].replace("}","");
+                parts[k] = parts[k].replace(" ","");
+                neighbor_and_val = parts[k].split(",");
+                for (int l = 0; l < neighbor_and_val.length; l++){
+                    String[] neighbor_and_val_parts = neighbor_and_val[l].split("=");
+                    int neighbor = Integer.parseInt(neighbor_and_val_parts[0]);
+                    float value = Float.parseFloat(neighbor_and_val_parts[1]);
+                    adjacency_table[neighbor-1][j] = value;
+                }
+            }
+        }
+        print_adjacency_table(adjacency_table);
+
+    }
+
+    public void print_adjacency_table(float[][] adjacency_table){
+        for (int i=0; i<num_of_nodes;i++){
+            for (int j=0; j<num_of_nodes;j++){
+                System.out.print(adjacency_table[i][j]);
+                if (j != num_of_nodes-1){
+                    System.out.print(", ");
+                }
+            }
+            System.out.println("");
+        }
+    }
+    public void init(){
+        this.stop_listening = false;
+        this.msgs = new HashMap<>();
     }
 
     public int get_num_neighs(){
@@ -62,10 +109,6 @@ public class Node extends Thread{
     public void read_msgs(){
         assert !is_listening();
         System.out.println(this.id + " " + (this.msgs.size() == this.num_of_nodes));
-//        for(String m: this.msgs.values()){
-//            System.out.println(m);
-//        }
-//        System.out.println();
     }
 
     public void update_weight(Integer neighbor, Double new_weight){
@@ -109,15 +152,7 @@ public class Node extends Thread{
             }
         }
     }
-    public void killListeningSockets(){
-        for (Socket s: this.sendingSockets.values()){
-            try{
-                s.close();
-            } catch (IOException e){
-                e.printStackTrace();
-            }
-        }
-    }
+
     private void sendMessage(String msg, Integer receiver){
         if (!this.sendingSockets.containsKey(receiver)){
             try {
@@ -137,9 +172,6 @@ public class Node extends Thread{
                 out.flush();
                 break;
             } catch (ConnectException e) {
-                // TODO;
-                // BUG - There are messages waiting to be sent when we stop
-                //       listening on other nodes, which leads to error
                 System.out.println("Problem with host/port or host is busy");
                 e.printStackTrace();
                 try {
@@ -154,18 +186,35 @@ public class Node extends Thread{
 
     }
     public Boolean is_listening(){
-        return this.curr_listening.size() == this.neighbors.size();
+        return this.receivingSockets.keySet().size() == this.neighbors.size();
     }
-    private synchronized void incrementListening(int port){
-        if (!this.curr_listening.contains(port)) {
-            this.curr_listening.add(port);
+
+    public void end(){
+        this.stop_listening = true;
+        for (Socket s: this.sendingSockets.values()){
+            try {
+                s.getOutputStream().close();
+                s.close();
+            } catch (IOException e){
+                e.printStackTrace();
+            }
+        }
+        for (Integer n: this.receivingSockets.keySet()){
+            try {
+                this.clientSockets.get(n).getInputStream().close();
+                this.clientSockets.get(n).close();
+                this.receivingSockets.get(n).close();
+            } catch (IOException e){
+                e.printStackTrace();
+            }
         }
     }
-    private synchronized void decrementListening(int port){
-        this.curr_listening.remove(Integer.valueOf(port));
+
+    public synchronized void add_server(Integer neigh, ServerSocket s){
+        this.receivingSockets.put(neigh, s);
     }
-    public void stop_receiving(){
-        this.stop_listening = true;
+    public synchronized void add_client(Integer neigh, Socket s){
+        this.clientSockets.put(neigh, s);
     }
 
     public void receiveMessages(){
@@ -174,36 +223,35 @@ public class Node extends Thread{
                 try {
                     //System.out.println("Node "+this.id+" is listening on port " + listen_port);
                     ServerSocket serverSocket = new ServerSocket(this.ports.get(neighbor).get(1));
-                    serverSocket.setSoTimeout(5000);
+                    //serverSocket.setSoTimeout(5000);
                     Socket socket = null;
                     StringBuilder f_msg = new StringBuilder();
-                    while (!this.stop_listening){
-                        try {
-                            incrementListening(this.ports.get(neighbor).get(1));
-                            if (socket == null){
-                                socket = serverSocket.accept();
-                            }
+                    add_server(neighbor, serverSocket);
+                    try {
+                        socket = serverSocket.accept();
+                        add_client(neighbor, socket);
+
+                    } catch (SocketTimeoutException e){
+                        System.out.println("Timed out");
+                    }
+                    try {
+                        while (!stop_listening) {
                             InputStream in = socket.getInputStream();
-                            byte[] msg_bits = new byte[1024];
+                            byte[] msg_bits = new byte[4029];
                             in.read(msg_bits);
                             String msg = new String(msg_bits).trim();
+                            int i;
                             if (!msg.equals("")) {
-                                int i = msg.lastIndexOf('@');
                                 f_msg.append(msg);
-                                handleMessage(f_msg.substring(0, i));
-                                f_msg = new StringBuilder(f_msg.substring(i + 1));
+                                i = f_msg.toString().lastIndexOf('@');
+                                if (i != -1) {
+                                    handleMessage(f_msg.substring(0, i));
+                                    f_msg = new StringBuilder(f_msg.substring(i + 1));
+                                }
                             }
-
-                        } catch (SocketTimeoutException e){
-                            System.out.println("JERE");
-                            decrementListening(this.ports.get(neighbor).get(1));
                         }
-                    }
-                    if (socket == null){
-                        System.out.println("Something fishy");
-                    }
-                    socket.close();
-                    serverSocket.close();
+                    } catch (SocketException ignored){}
+
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

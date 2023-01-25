@@ -1,3 +1,4 @@
+import java.net.SocketException;
 import java.util.*;
 import java.io.*;
 import java.util.*;
@@ -44,7 +45,7 @@ public class ExManager {
         to.update_weight(from.id, weight);
     }
 
-    public void read_txt() throws FileNotFoundException{
+    public void read_txt() throws FileNotFoundException {
         File file = new File(this.path);
         Scanner scanner = new Scanner(file);
 
@@ -56,46 +57,44 @@ public class ExManager {
         // reading the rest of the file until 'stop' and initiating the nodes
         while (scanner.hasNextLine()) {
             line = scanner.nextLine();
-            if (line.contains("stop")){
+            if (line.contains("stop")) {
                 break;
             }
 
             line_items = line.split(" ");
             System.out.println(line);
             Integer id = Integer.parseInt(line_items[0]);
-            Node node = new Node(line, this.num_of_nodes, this);
+            Node node = new Node(line, this.num_of_nodes);
             nodes.add(node);
             //num_threads += node.get_num_neighs();
         }
         //System.out.println(num_threads);
         // DELETE THIS
+    }
 
-//        try {
-//            for (Node n : this.nodes){
-//                n.receiveMessages();
-//            }
-//        } catch (IOException e){
-//            e.printStackTrace();
-//        }
-//        try{
-//            for (Node n : this.nodes){
-//                n.send();
-//            }
-//        } catch (IOException e){
-//            e.printStackTrace();
-//        }
-//
-//        for (Node n : this.nodes){
-//            n.read_msgs();
-//        }
+    public void terminate(){
+        for (Node node: this.nodes){
+            //System.out.println(node.id + " is here");
+            node.end();
+        }
     }
 
     public void start() {
         // your code here
         for (Node node: this.nodes){
+            node.init();
+        }
+        for (Node node: this.nodes){
             // wait until node is listening
             while (!node.is_listening()){
+//                try {
+//                    System.out.println(node.id+ "_"+ node.receivingSockets.keySet() + "_" + node.get_num_neighs());
+//                } catch (ConcurrentModificationException e){
+//                    System.out.println("too fast");
+//                }
+
             }
+            //System.out.println(node.id + "listening");
         }
         for (Node node: this.nodes){
             node.run();
@@ -103,22 +102,17 @@ public class ExManager {
 
         for (Node node: this.nodes){
             while(node.num_msgs() != num_of_nodes){
+                System.out.print("");
             }
-            System.out.println(node.id + "finished");
+            System.out.print("");
         }
-        for (Node node: this.nodes){
-            //System.out.println(node.id + " is here");
-            node.killListeningSockets();
-            node.stop_receiving();
-        }
+
         for (Node node: this.nodes){
             try{node.join();}
             catch (InterruptedException e){
                 e.printStackTrace();
             }
         }
-        for (Node node: this.nodes){
-            node.read_msgs();
-        }
+
     }
 }
