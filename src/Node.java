@@ -9,15 +9,12 @@ public class Node extends Thread{
     private Map<Integer, Double> neighbors;
     private Map<Integer, List<Integer>> ports;
     // ports is of the form (neighbor_id) -> (send_port, listen_port)
-    private Map<Integer, Integer> seqCounter;
     private Map<Integer, String> msgs;
     private Boolean stop_listening;
     private Map<Integer, Socket> sendingSockets;
     public Map<Integer, ServerSocket> receivingSockets;
     private Map<Integer, Socket> clientSockets;
-    private List<Integer> curr_listening;
 
-    public ExManager manager;
 
 
     public static <K, V> void printMap(Map<K, V> map) {
@@ -28,10 +25,8 @@ public class Node extends Thread{
     public Node(String line, Integer num_of_nodes){
         this.ports = new HashMap<>();
         this.neighbors = new HashMap<>();
-        this.seqCounter = new HashMap<>();
         this.msgs = new HashMap<>();
         this.num_of_nodes = num_of_nodes;
-        this.curr_listening = new ArrayList<>();
         this.sendingSockets = new HashMap<>();
         this.receivingSockets = new HashMap<>();
         this.clientSockets = new HashMap<>();
@@ -42,7 +37,10 @@ public class Node extends Thread{
     }
 
     public void print_graph(){
-
+        /*
+        Prints adjacency table for node
+        @returns None
+         */
         float[][] adjacency_table = new float[num_of_nodes][num_of_nodes];
         for (int i=0; i<num_of_nodes;i++){
             for (int j=0; j<num_of_nodes;j++){
@@ -85,13 +83,13 @@ public class Node extends Thread{
         }
     }
     public void init(){
+        /*
+        Initializes communication variables for node
+         */
         this.stop_listening = false;
         this.msgs = new HashMap<>();
     }
 
-    public int get_num_neighs(){
-        return this.neighbors.size();
-    }
 
     @Override
     public void run() {
@@ -100,21 +98,42 @@ public class Node extends Thread{
         send();
     }
     public int num_msgs(){
+        /*
+        @returns number of messages node currently has
+         */
         return this.msgs.size();
     }
     private void send(){
+        /*
+        Creates the first message which contains the info about the neighbors
+        and sends it using flooding
+         */
         String msg = this.neighbors.toString();//"from" + this.id;
         handleMessage(this.id+"/"+msg+"@");
     }
     public void read_msgs(){
+        /*
+        Debugging function to show msgs that were recieved
+         */
         assert !is_listening();
         System.out.println(this.id + " " + (this.msgs.size() == this.num_of_nodes));
     }
 
     public void update_weight(Integer neighbor, Double new_weight){
+        /*
+        Updates edge weight
+        @neighbor the node who shares the edge
+        @new_weight updated weight
+        @returns None
+         */
         this.neighbors.put(neighbor, new_weight);
     }
     private void parseLine(String line){
+        /*
+        Handles the lines which is given to node, by updating neighbors and their weights and ports
+        @line string the follows the protocol provided
+        @return None
+         */
         String[] parts = line.split(" ");
         this.id = Integer.parseInt(parts[0]);
         for (int i = 1; i < parts.length; i += 4) {
@@ -134,10 +153,17 @@ public class Node extends Thread{
 
 
     private synchronized void handleMessage(String msg){
+        /*
+        Handles the message that the node receives.
+        If node has received a message from the sender of the message it ignores it,
+        else it updates its messages and floods it.
+        @msg string format of the neighbors in Map form
+         */
         // msg is of the form (msg, source)
         if (msg.equals("")){
             return;
         }
+        // @ is chosen as an EOS char
         for (String s: msg.split("@")) {
             String[] parts = s.split("/");
             Integer source = Integer.parseInt(parts[0]);
@@ -145,6 +171,7 @@ public class Node extends Thread{
             //System.out.println(this.id + "-" + s + " and sending it to " + this.neighbors.keySet());
             if (!this.msgs.containsKey(source)) {
                 this.msgs.put(source, org_msg);
+                // Flood
                 for (Integer neighbor : this.neighbors.keySet()) {
                     // send msg
                     sendMessage(s + "@", neighbor);
@@ -154,6 +181,14 @@ public class Node extends Thread{
     }
 
     private void sendMessage(String msg, Integer receiver){
+        /*
+        Responsible for establishing initial connection (Socket), and sends messages during run-time
+        on that connection.
+        Does not kill connection
+        @msg message to be sent
+        @receiver id of the node to receive the message
+        @returns None
+         */
         if (!this.sendingSockets.containsKey(receiver)){
             try {
                 int send_port = this.ports.get(receiver).get(0);
@@ -186,10 +221,19 @@ public class Node extends Thread{
 
     }
     public Boolean is_listening(){
+        /*
+        Is the Node listening on all ports, checks whether the number of Server Sockets currently
+        active is equal to number of neighbors
+        @returns is the node listening
+         */
         return this.receivingSockets.keySet().size() == this.neighbors.size();
     }
 
     public void end(){
+        /*
+        To be called once the round is over to close all streams,sockets and Server Sockets safely
+        @returns none
+         */
         this.stop_listening = true;
         for (Socket s: this.sendingSockets.values()){
             try {
@@ -218,14 +262,18 @@ public class Node extends Thread{
     }
 
     public void receiveMessages(){
+        /*
+        Starts listening on the specified ports in parallel, and once a client connects it
+        receives the message and hands it off to handle message.
+        Has a built-in buffer so that the messages sent to handleMessage are correct and full
+         */
         for (Integer neighbor: this.neighbors.keySet()){
             Thread thread = new Thread(() -> {
                 try {
                     //System.out.println("Node "+this.id+" is listening on port " + listen_port);
                     ServerSocket serverSocket = new ServerSocket(this.ports.get(neighbor).get(1));
-                    //serverSocket.setSoTimeout(5000);
                     Socket socket = null;
-                    StringBuilder f_msg = new StringBuilder();
+                    StringBuilder f_msg = new StringBuilder(); // The buffer
                     add_server(neighbor, serverSocket);
                     try {
                         socket = serverSocket.accept();

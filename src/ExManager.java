@@ -62,19 +62,15 @@ public class ExManager {
             }
 
             line_items = line.split(" ");
-            System.out.println(line);
+            //System.out.println(line);
             Integer id = Integer.parseInt(line_items[0]);
             Node node = new Node(line, this.num_of_nodes);
             nodes.add(node);
-            //num_threads += node.get_num_neighs();
         }
-        //System.out.println(num_threads);
-        // DELETE THIS
     }
 
     public void terminate(){
         for (Node node: this.nodes){
-            //System.out.println(node.id + " is here");
             node.end();
         }
     }
@@ -86,14 +82,7 @@ public class ExManager {
         }
         for (Node node: this.nodes){
             // wait until node is listening
-            while (!node.is_listening()){
-//                try {
-//                    System.out.println(node.id+ "_"+ node.receivingSockets.keySet() + "_" + node.get_num_neighs());
-//                } catch (ConcurrentModificationException e){
-//                    System.out.println("too fast");
-//                }
-
-            }
+            while (!node.is_listening()){}
             //System.out.println(node.id + "listening");
         }
         for (Node node: this.nodes){
