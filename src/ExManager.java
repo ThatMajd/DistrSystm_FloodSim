@@ -15,7 +15,7 @@ public class ExManager {
         this.nodes = new ArrayList<Node>();
     }
 
-    public Node getNode(int id) {
+    public Node get_node(int id) {
         for (Node node : nodes) {
             if (node.id == id) {
                 return node;
@@ -24,10 +24,16 @@ public class ExManager {
         return null;
     }
     public int getNum_of_nodes() {
+        /*
+        @returns number of nodes in graph
+         */
         return this.num_of_nodes;
     }
 
     public void update_edge(int id1, int id2, double weight){
+        /*
+        Symmetrically updates the edge's weight
+         */
         Node from = null;
         Node to = null;
         for (Node node : nodes) {
@@ -46,6 +52,9 @@ public class ExManager {
     }
 
     public void read_txt() throws FileNotFoundException {
+        /*
+        Start building the graph from the path provided
+         */
         File file = new File(this.path);
         Scanner scanner = new Scanner(file);
 
@@ -70,13 +79,16 @@ public class ExManager {
     }
 
     public void terminate(){
+        /*
+        Safely kills all Sockets
+         */
         for (Node node: this.nodes){
             node.end();
         }
     }
 
     public void start() {
-        // your code here
+        // Initiate Link State Routing
         for (Node node: this.nodes){
             node.init();
         }
